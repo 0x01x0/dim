@@ -1,10 +1,38 @@
-FROM node:bullseye AS web
+FROM node:18-bullseye AS web
 WORKDIR /ui
-COPY ui/package*.json .
+COPY ui/package*.json ./
 RUN yarn install
-COPY ui .
+COPY ui ./
 ENV NODE_OPTIONS=--openssl-legacy-provider
 RUN yarn run build
+
+FROM debian:bullseye AS ffmpeg
+ARG DEBIAN_FRONTEND=noninteractive
+WORKDIR /static
+ARG TARGETPLATFORM
+RUN echo ${TARGETPLATFORM}
+RUN apt update && \
+    apt install -y --no-install-recommends wget unzip tar ca-certificates xz-utils
+
+RUN if [ "${TARGETPLATFORM}" = "linux/amd64" ]; then \
+    wget https://github.com/Dusk-Labs/ffmpeg-static/releases/download/ffmpeg-all-0.0.1/ffmpeg && \
+    wget https://github.com/Dusk-Labs/ffmpeg-static/releases/download/ffmpeg-all-0.0.1/ffprobe && \
+    ls -la . && \
+    pwd \
+    ; fi
+    
+RUN if [ "${TARGETPLATFORM}" = "linux/arm64" ]; then \
+    wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz && \
+    tar --strip-components 1 -xf ffmpeg-release-arm64-static.tar.xz \
+    ; fi
+    
+RUN if [ "${TARGETPLATFORM}" = "linux/arm/v7" ]; then \
+    wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-armhf-static.tar.xz && \
+    tar --strip-components 1 -xf ffmpeg-release-armhf-static.tar.xz \
+    ; fi
+    
+RUN chmod +x /static/ffmpeg && chmod +x /static/ffprobe
+
 
 FROM rust:bullseye AS dim
 ARG DEBIAN_FRONTEND=noninteractive
@@ -14,34 +42,21 @@ RUN apt-get update && apt-get install -y \
     libva2 \
     sqlite3
 WORKDIR /dim
-COPY . .
+COPY . ./
 COPY --from=web /ui/build ui/build
 ARG DATABASE_URL="sqlite://dim_dev.db"
-RUN cargo build --release
 
-FROM debian:bullseye AS ffmpeg
-ARG DEBIAN_FRONTEND=noninteractive
-WORKDIR /static
-ARG TARGETARCH
-RUN if [ "$TARGETARCH" = "amd64" ]; then \
-    apt-get update && \
-    apt-get install -y wget unzip && \
-    wget https://nightly.link/Dusk-Labs/ffmpeg-static/workflows/main/master/bins.zip && \
-    unzip bins.zip \
+# Sometimes we may need to quickly build a test image
+ARG RUST_BUILD=release
+RUN if [ "$RUST_BUILD" = "debug" ]; then \
+        cargo build --features vaapi && \
+        mv ./target/debug/dim ./target/dim \
     ; fi
-RUN if [ "$TARGETARCH" = "arm64" ]; then \
-    apt-get update && \
-    apt-get install -y wget tar xz-utils && \
-    wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-arm64-static.tar.xz && \
-    tar --strip-components 1 -xf ffmpeg-release-arm64-static.tar.xz \
+
+RUN if [ "$RUST_BUILD" = "release" ]; then \
+        cargo build --features vaapi --release && \
+        mv ./target/release/dim ./target/dim \
     ; fi
-RUN if [ "$TARGETARCH" = "arm" ]; then \
-    apt-get update && \
-    apt-get install -y wget tar xz-utils && \
-    wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-armhf-static.tar.xz && \
-    tar --strip-components 1 -xf ffmpeg-release-armhf-static.tar.xz \
-    ; fi
-RUN chmod +x /static/ffmpeg && chmod +x /static/ffprobe
 
 FROM debian:bullseye
 ENV RUST_BACKTRACE=full
@@ -57,10 +72,13 @@ RUN apt-get update && apt-get install -y \
     libvorbis0a \
     libvorbisenc2 \
     && rm -rf /var/lib/apt/lists/*
-COPY --from=dim /dim/target/release/dim /opt/dim/dim
 COPY --from=ffmpeg /static/ffmpeg /opt/dim/utils/ffmpeg
 COPY --from=ffmpeg /static/ffprobe /opt/dim/utils/ffprobe
+COPY --from=dim /dim/target/dim /opt/dim/dim
 
 EXPOSE 8000
 VOLUME ["/opt/dim/config"]
-CMD ["/opt/dim/dim"]
+
+ENV RUST_LOG=info
+WORKDIR /opt/dim
+CMD ["./dim"]

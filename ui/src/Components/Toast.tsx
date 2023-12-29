@@ -1,19 +1,20 @@
 import { useCallback } from "react";
-import { useDispatch } from "react-redux";
-import { notificationsRemove } from "../actions/notifications";
+
+import { useAppDispatch } from "../hooks/store";
+import { removeNotification } from "../slices/notifications";
 
 import "./Toast.scss";
 
 type ToastProps = {
-  id: number
-  children: React.ReactNode
-}
+  id: number;
+  children: React.ReactNode;
+};
 
 function Toast(props: ToastProps) {
-  const dispatch = useDispatch();
+  const dispatch = useAppDispatch();
 
   const dismiss = useCallback(() => {
-    dispatch(notificationsRemove(props.id));
+    dispatch(removeNotification(props.id));
   }, [dispatch, props.id]);
 
   return (

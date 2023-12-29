@@ -3,16 +3,12 @@ import { useParams } from "react-router";
 import { useDispatch, useSelector } from "react-redux";
 
 import { updateVideo } from "../../actions/video";
-import { fetchMediaInfo } from "../../actions/media";
 
 function VideoMediaData() {
   const params = useParams();
   const dispatch = useDispatch();
 
-  const { video, auth } = useSelector(store => ({
-    auth: store.auth,
-    video: store.video
-  }));
+  const auth = useSelector((store) => store.auth);
 
   const { token } = auth;
 
@@ -20,8 +16,8 @@ function VideoMediaData() {
     (async () => {
       const config = {
         headers: {
-          "authorization": token
-        }
+          authorization: token,
+        },
       };
 
       const res = await fetch(`/api/v1/mediafile/${params.fileID}`, config);
@@ -32,16 +28,13 @@ function VideoMediaData() {
 
       const payload = await res.json();
 
-      dispatch(updateVideo({
-        mediaID: payload.media_id
-      }));
+      dispatch(
+        updateVideo({
+          mediaID: payload.media_id,
+        })
+      );
     })();
   }, [dispatch, params.fileID, token]);
-
-  useEffect(() => {
-    if (!video.mediaID) return;
-    dispatch(fetchMediaInfo(video.mediaID));
-  }, [dispatch, video.mediaID]);
 
   return null;
 }

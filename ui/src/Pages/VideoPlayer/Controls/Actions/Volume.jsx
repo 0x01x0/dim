@@ -1,17 +1,19 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useContext } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { VideoPlayerContext } from "../../Context";
 
 import VolumeUpIcon from "../../../../assets/Icons/VolumeUp";
 import VolumeMuteIcon from "../../../../assets/Icons/VolumeMute";
 
 import { updateVideo } from "../../../../actions/video";
+import { UnfocusableButton } from "Components/unfocusableButton";
 
 function VideoActionVolume() {
   const dispatch = useDispatch();
+  const { player } = useContext(VideoPlayerContext);
 
-  const { video, player } = useSelector(store => ({
+  const { video } = useSelector((store) => ({
     video: store.video,
-    player: store.video.player
   }));
 
   const volSliderRef = useRef(null);
@@ -22,9 +24,11 @@ function VideoActionVolume() {
   const [showVolCount, setShowVolCount] = useState(false);
 
   const toggleMute = useCallback(() => {
-    dispatch(updateVideo({
-      idleCount: 0
-    }));
+    dispatch(
+      updateVideo({
+        idleCount: 0,
+      })
+    );
 
     if (currentVolume === 0) {
       player.setMute(false);
@@ -37,19 +41,24 @@ function VideoActionVolume() {
 
       player.setMute(!currentMuteState);
 
-      dispatch(updateVideo({
-        muted: !currentMuteState
-      }));
+      dispatch(
+        updateVideo({
+          muted: !currentMuteState,
+        })
+      );
     }
   }, [currentVolume, dispatch, player]);
 
-  const handleKeyDown = useCallback(e => {
-    if (e.key === "m") {
-      toggleMute();
-    }
-  }, [toggleMute]);
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === "m") {
+        toggleMute();
+      }
+    },
+    [toggleMute]
+  );
 
-  const handleClick = useCallback(e => {
+  const handleClick = useCallback((e) => {
     const slider = volSliderRef.current.getBoundingClientRect();
     const x = e.clientX - slider.left;
 
@@ -77,27 +86,49 @@ function VideoActionVolume() {
     setDragging(false);
   }, []);
 
-  const handleMouseMove = useCallback((e) => {
-    if (dragging) {
-      const slider = volSliderRef.current.getBoundingClientRect();
-      const x = e.clientX - slider.left;
+  const handleMouseMove = useCallback(
+    (e) => {
+      if (dragging) {
+        const slider = volSliderRef.current.getBoundingClientRect();
+        const x = e.clientX - slider.left;
 
-      let percent = Math.round((x / slider.width) * 100);
+        let percent = Math.round((x / slider.width) * 100);
 
-      if (percent <= 5) {
-        percent = 0;
+        if (percent <= 5) {
+          percent = 0;
+        }
+
+        if (percent >= 95) {
+          percent = 100;
+        }
+
+        volRef.current.style.transition = "";
+
+        setCurrentVolume(percent);
+        setShowVolCount(true);
       }
+    },
+    [dragging]
+  );
 
-      if (percent >= 95) {
-        percent = 100;
+  const handleWheelEvent = useCallback(
+    (e) => {
+      if (e.deltaY > 0) {
+        let newVolume = currentVolume - 5;
+        if (newVolume < 0) {
+          newVolume = 0;
+        }
+        setCurrentVolume(newVolume);
+      } else if (e.deltaY < 0) {
+        let newVolume = currentVolume + 5;
+        if (newVolume > 100) {
+          newVolume = 100;
+        }
+        setCurrentVolume(newVolume);
       }
-
-      volRef.current.style.transition = "";
-
-      setCurrentVolume(percent);
-      setShowVolCount(true);
-    }
-  }, [dragging]);
+    },
+    [currentVolume]
+  );
 
   useEffect(() => {
     localStorage.setItem("videoVolume", currentVolume);
@@ -139,6 +170,7 @@ function VideoActionVolume() {
     volSlider.addEventListener("mousemove", handleMouseMove);
 
     document.addEventListener("keydown", handleKeyDown);
+    document.addEventListener("wheel", handleWheelEvent);
 
     return () => {
       volSlider.removeEventListener("click", handleClick);
@@ -147,17 +179,32 @@ function VideoActionVolume() {
       volSlider.removeEventListener("mousemove", handleMouseMove);
 
       document.removeEventListener("keydown", handleKeyDown);
+      document.removeEventListener("wheel", handleWheelEvent);
     };
-  }, [handleClick, handleKeyDown, handleMouseDown, handleMouseMove, handleMouseUp]);
+  }, [
+    handleClick,
+    handleKeyDown,
+    handleMouseDown,
+    handleMouseMove,
+    handleMouseUp,
+    handleWheelEvent,
+  ]);
 
   return (
     <>
-      <button onClick={toggleMute} className="volume">
-        {!video.muted && currentVolume > 0 ? <VolumeUpIcon/> : <VolumeMuteIcon/>}
-      </button>
+      <UnfocusableButton onClick={toggleMute} className="volume">
+        {!video.muted && currentVolume > 0 ? (
+          <VolumeUpIcon />
+        ) : (
+          <VolumeMuteIcon />
+        )}
+      </UnfocusableButton>
       <div className="volSliderWrapper">
-        <div className={`volSlider dragging-${showVolCount}`} ref={volSliderRef}>
-          <div className="vol" ref={volRef}/>
+        <div
+          className={`volSlider dragging-${showVolCount}`}
+          ref={volSliderRef}
+        >
+          <div className="vol" ref={volRef} />
         </div>
       </div>
     </>

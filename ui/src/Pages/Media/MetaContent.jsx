@@ -1,46 +1,37 @@
 import { useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useHistory } from "react-router";
 import { Link, useParams } from "react-router-dom";
+import { skipToken } from "@reduxjs/toolkit/query/react";
+
+import { useGetMediaQuery } from "../../api/v1/media";
 
 import Button from "../../Components/Misc/Button";
-import { fetchMediaInfo } from "../../actions/media";
 import CircleIcon from "../../assets/Icons/Circle";
 import SelectMediaFile from "../../Modals/SelectMediaFile/Index";
 import SelectMediaFilePlayButton from "../../Modals/SelectMediaFile/Activators/PlayButton";
 import CardImage from "./CardImage";
 
+import Dropdown from "./Dropdown";
+
 import "./MetaContent.scss";
 
-function MetaContent() {
-  const dispatch = useDispatch();
+function MetaContent(props) {
+  const { activeId } = props;
   const history = useHistory();
-
-  const media = useSelector(store => (
-    store.media
-  ));
 
   const { id } = useParams();
 
-  useEffect(() => {
-    dispatch(fetchMediaInfo(id));
-  }, [dispatch, id]);
+  const { data, isError } = useGetMediaQuery(id ? id : skipToken);
 
   useEffect(() => {
-    if (!media[id]?.info) return;
-
-    const { fetched, error, data } = media[id].info;
-
-    // FETCH_MEDIA_INFO_OK
-    if (fetched && !error) {
+    if (data) {
       document.title = `Dim - ${data.name}`;
     }
-  }, [id, media]);
+  }, [data]);
 
   let metaContent = <></>;
 
-  // FETCH_MEDIA_INFO_OK
-  if (media[id]?.info?.fetched && media[id]?.info?.error) {
+  if (isError) {
     metaContent = (
       <div className="metaContentErr">
         <h2>Failed to load media</h2>
@@ -50,8 +41,7 @@ function MetaContent() {
     );
   }
 
-  // FETCH_MEDIA_INFO_OK
-  if (media[id]?.info?.fetched && !media[id]?.info?.error) {
+  if (data) {
     const {
       description,
       genres,
@@ -63,38 +53,51 @@ function MetaContent() {
       seasons,
       progress,
       season,
-      episode
-    } = media[id].info.data;
+      episode,
+      tags,
+    } = data;
 
     const length = {
       hh: ("0" + Math.floor(duration / 3600)).slice(-2),
       mm: ("0" + Math.floor((duration % 3600) / 60)).slice(-2),
-      ss: ("0" + Math.floor((duration % 3600) % 60)).slice(-2)
+      ss: ("0" + Math.floor((duration % 3600) % 60)).slice(-2),
     };
+
+    const { video, audio } = tags[activeId] || {};
 
     metaContent = (
       <div className="metaContent">
-        <CardImage src={media[id]?.info.data.poster_path}/>
-        <h1>{name}</h1>
+        <CardImage src={data.poster_path} />
+        <div className="title">
+          <h1>{name}</h1>
+          <Dropdown />
+        </div>
         <div className="genres">
           <Link to={`/search?year=${year}`}>{year}</Link>
-          {genres.length > 0 && (
-            <CircleIcon/>
-          )}
+          {genres.length > 0 && <CircleIcon />}
           {genres &&
-            genres.map((genre, i) => <Link to={`/search?genre=${encodeURIComponent(genre)}`} key={i}>{genre}</Link>)
-          }
+            genres.map((genre, i) => (
+              <Link to={`/search?genre=${encodeURIComponent(genre)}`} key={i}>
+                {genre}
+              </Link>
+            ))}
         </div>
         <p className="description">{description}</p>
         <div className="meta-info">
           <div className="info">
-            <h4>Type</h4>
-            <p>{media_type}</p>
+            <h4>Video</h4>
+            <p>{video}</p>
+          </div>
+          <div className="info">
+            <h4>Audio</h4>
+            <p>{audio}</p>
           </div>
           {!seasons && (
             <div className="info">
               <h4>Duration</h4>
-              <p>{length.hh}:{length.mm}:{length.ss}</p>
+              <p>
+                {length.hh}:{length.mm}:{length.ss}
+              </p>
             </div>
           )}
           {seasons && (
@@ -110,7 +113,10 @@ function MetaContent() {
         </div>
         {media_type !== "tv" && (
           <SelectMediaFile title={name} mediaID={id}>
-            <SelectMediaFilePlayButton progress={progress} seasonep={{season, episode}}/>
+            <SelectMediaFilePlayButton
+              progress={progress}
+              seasonep={{ season, episode }}
+            />
           </SelectMediaFile>
         )}
       </div>

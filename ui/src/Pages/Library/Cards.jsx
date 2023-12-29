@@ -1,17 +1,16 @@
-import { useCallback, useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useSelector } from "react-redux";
 import { useParams } from "react-router";
 
 import Card from "../../Components/Card/Index";
 import Dropdown from "./Dropdown";
-import { LibraryContext } from "./Context";
+import useWebSocket from "../../hooks/ws";
 
 import "./Cards.scss";
 
-function Cards(props) {
+function Cards() {
   const params = useParams();
-
-  const { showUnmatched, setShowUnmatched } = useContext(LibraryContext);
+  const ws = useWebSocket();
 
   const [title, setTitle] = useState("");
   const [cards, setCards] = useState([]);
@@ -28,76 +27,72 @@ function Cards(props) {
 
   const [throttleEventNewCardID, setThrottleEventNewCardID] = useState(false);
 
-  const { auth, ws } = useSelector(store => ({
-    auth: store.auth,
-    ws: store.ws
-  }));
+  const auth = useSelector((store) => store.auth);
 
   const cardList = useRef(null);
 
-  const fetchCards = useCallback(async (reset = true) => {
-    if (reset) {
-      setNewCards([]);
-      setShowUnmatched(false);
-    }
+  const fetchCards = useCallback(
+    async (reset = true) => {
+      if (reset) {
+        setNewCards([]);
+      }
 
-    try {
-      const config = {
-        headers: {
-          "authorization": auth.token
+      try {
+        const config = {
+          headers: {
+            authorization: auth.token,
+          },
+        };
+
+        const res = await fetch(`/api/v1/library/${currentID}/media`, config);
+
+        if (res.status !== 200) {
+          return;
         }
-      };
 
-      const res = await fetch(`/api/v1/library/${currentID}/media`, config);
+        const payload = await res.json();
 
-      if (res.status !== 200) {
-        return;
+        setTitle(Object.keys(payload)[0]);
+        setNewCards(Object.values(payload)[0]);
+        setFetched(true);
+      } catch (err) {}
+    },
+    [auth.token, currentID]
+  );
+
+  const handleWS = useCallback(
+    (e) => {
+      const { type, lib_id } = JSON.parse(e.data);
+
+      if (type === "EventNewCard") {
+        if (lib_id !== parseInt(params.id)) return;
+
+        if (throttleEventNewCardID) {
+          clearTimeout(throttleEventNewCardID);
+          setThrottleEventNewCardID();
+        }
+
+        const id = setTimeout(() => {
+          fetchCards(false);
+        }, 500);
+
+        setThrottleEventNewCardID(id);
       }
-
-      const payload = await res.json();
-
-      setTitle(Object.keys(payload)[0]);
-      setNewCards(Object.values(payload)[0]);
-      setFetched(true);
-
-    } catch(err) {}
-  }, [auth.token, currentID, setShowUnmatched]);
-
-  const handleWS = useCallback((e) => {
-    const { type, lib_id } = JSON.parse(e.data);
-
-    if (type === "EventNewCard") {
-      if (lib_id !== parseInt(params.id)) return;
-
-      if (throttleEventNewCardID) {
-        clearTimeout(throttleEventNewCardID);
-        setThrottleEventNewCardID();
-      }
-
-      const id = setTimeout(() => {
-        fetchCards(false);
-      }, 500);
-
-      setThrottleEventNewCardID(id);
-    }
-  }, [fetchCards, params.id, throttleEventNewCardID]);
+    },
+    [fetchCards, params.id, throttleEventNewCardID]
+  );
 
   useEffect(() => {
-    if (!ws.conn) return;
+    if (!ws) return;
 
-    ws.conn.addEventListener("message", handleWS);
-    return () => ws.conn.removeEventListener("message", handleWS);
-  }, [handleWS, ws.conn]);
+    ws.addEventListener("message", handleWS);
+    return () => ws.removeEventListener("message", handleWS);
+  }, [handleWS, ws]);
 
   useEffect(() => {
     if (!title) return;
     document.title = `Dim - ${title}`;
   }, [title]);
-
-  useEffect(() => {
-    if (!cardList.current) return;
-    cardList.current.style["pointer-events"] = showUnmatched ? "none" : "all";
-  }, [showUnmatched]);
 
   useEffect(() => {
     if (currentID !== params.id) {
@@ -114,16 +109,7 @@ function Cards(props) {
   const handleTransitionEnd = useCallback((e) => {
     if (e.target !== cardList.current) return;
     if (e.propertyName !== "top") return;
-
-    if (!showUnmatched) {
-      document.body.style.overflow = "unset";
-    }
-  }, [showUnmatched]);
-
-  useEffect(() => {
-    if (!showUnmatched) return;
-    document.body.style.overflow = "hidden";
-  }, [showUnmatched]);
+  }, []);
 
   useEffect(() => {
     if (!cardList.current) return;
@@ -132,7 +118,8 @@ function Cards(props) {
 
     cards.addEventListener("transitionend", handleTransitionEnd);
 
-    return () => cards.removeEventListener("transitionend", handleTransitionEnd);
+    return () =>
+      cards.removeEventListener("transitionend", handleTransitionEnd);
   }, [handleTransitionEnd]);
 
   /*
@@ -157,19 +144,22 @@ function Cards(props) {
   }, []);
 
   return (
-    <div className={`libraryCards slip-${props.slip}`} ref={cardList}>
+    <div className="libraryCards" ref={cardList}>
       <div className="libraryHeader">
         <h2>{title.toLowerCase()}</h2>
         <div className="actions">
-          <Dropdown/>
+          <Dropdown />
         </div>
       </div>
-      {(show && fetched && newCards.length === 0) && (
+      {show && fetched && newCards.length === 0 && (
         <p className="desc">No media has been found</p>
       )}
-      <div className={`cards show-${show && fetched}`} onAnimationEnd={handleEnd}>
+      <div
+        className={`cards show-${show && fetched}`}
+        onAnimationEnd={handleEnd}
+      >
         {cards.map((card, i) => (
-          <Card key={i} data={card}/>
+          <Card key={i} data={card} />
         ))}
       </div>
     </div>

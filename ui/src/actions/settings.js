@@ -5,10 +5,11 @@ import {
   FETCH_GLOBAL_SETTINGS_START,
   FETCH_GLOBAL_SETTINGS_OK,
   FETCH_GLOBAL_SETTINGS_ERR,
-  NOTIFICATIONS_ADD,
   UPDATE_USER_SETTINGS,
-  UPDATE_GLOBAL_SETTINGS
+  UPDATE_GLOBAL_SETTINGS,
 } from "./types";
+
+import { addNotification } from "../slices/notifications";
 
 export const fetchUserSettings = () => async (dispatch, getState) => {
   const token = getState().auth.token;
@@ -17,8 +18,8 @@ export const fetchUserSettings = () => async (dispatch, getState) => {
 
   const config = {
     headers: {
-      "Authorization" : token
-    }
+      Authorization: token,
+    },
   };
 
   try {
@@ -27,7 +28,7 @@ export const fetchUserSettings = () => async (dispatch, getState) => {
     if (res.status !== 200) {
       return dispatch({
         type: FETCH_USER_SETTINGS_ERR,
-        payload: res.statusText
+        payload: res.statusText,
       });
     }
 
@@ -35,13 +36,12 @@ export const fetchUserSettings = () => async (dispatch, getState) => {
 
     dispatch({
       type: FETCH_USER_SETTINGS_OK,
-      payload: settings
+      payload: settings,
     });
-
-  } catch(err) {
+  } catch (err) {
     dispatch({
       type: FETCH_USER_SETTINGS_ERR,
-      payload: err
+      payload: err,
     });
   }
 };
@@ -50,13 +50,13 @@ export const fetchGlobalSettings = () => async (dispatch, getState) => {
   const token = getState().auth.token;
 
   dispatch({
-    type: FETCH_GLOBAL_SETTINGS_START
+    type: FETCH_GLOBAL_SETTINGS_START,
   });
 
   const config = {
     headers: {
-      "authorization" : token
-    }
+      authorization: token,
+    },
   };
 
   try {
@@ -65,7 +65,7 @@ export const fetchGlobalSettings = () => async (dispatch, getState) => {
     if (res.status !== 200) {
       return dispatch({
         type: FETCH_GLOBAL_SETTINGS_ERR,
-        payload: res.statusText
+        payload: res.statusText,
       });
     }
 
@@ -73,12 +73,12 @@ export const fetchGlobalSettings = () => async (dispatch, getState) => {
 
     dispatch({
       type: FETCH_GLOBAL_SETTINGS_OK,
-      payload: settings
+      payload: settings,
     });
-  } catch(err) {
+  } catch (err) {
     dispatch({
       type: FETCH_GLOBAL_SETTINGS_ERR,
-      payload: err
+      payload: err,
     });
   }
 };
@@ -91,50 +91,47 @@ export const updateUserSettings = (data) => async (dispatch, getState) => {
 
   const newSettings = {
     ...userSettings.data,
-    ...data
+    ...data,
   };
 
   const config = {
     method: "POST",
     headers: {
-      "Authorization" : token,
-      "Content-Type": "application/json"
+      Authorization: token,
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify(newSettings)
+    body: JSON.stringify(newSettings),
   };
 
   try {
     const res = await fetch("/api/v1/user/settings", config);
 
     if (res.status !== 200) {
-      dispatch({
-        type: NOTIFICATIONS_ADD,
-        payload: {
-          msg: "Failed to save settings."
-        }
-      });
+      dispatch(
+        addNotification({
+          msg: "Failed to save settings.",
+        })
+      );
 
       return;
     }
 
     dispatch({
       type: UPDATE_USER_SETTINGS,
-      payload: newSettings
+      payload: newSettings,
     });
 
-    dispatch({
-      type: NOTIFICATIONS_ADD,
-      payload: {
-        msg: "Successfuly saved your changes."
-      }
-    });
-  } catch(err) {
-    dispatch({
-      type: NOTIFICATIONS_ADD,
-      payload: {
-        msg: "Failed to save settings."
-      }
-    });
+    dispatch(
+      addNotification({
+        msg: "Successfuly saved your changes.",
+      })
+    );
+  } catch (err) {
+    dispatch(
+      addNotification({
+        msg: "Failed to save settings.",
+      })
+    );
   }
 };
 
@@ -146,49 +143,46 @@ export const updateGlobalSettings = (data) => async (dispatch, getState) => {
 
   const newSettings = {
     ...globalSettings,
-    ...data
+    ...data,
   };
 
   const config = {
     method: "POST",
     headers: {
-      "Authorization" : token,
-      "Content-Type": "application/json"
+      Authorization: token,
+      "Content-Type": "application/json",
     },
-    body: JSON.stringify(newSettings)
+    body: JSON.stringify(newSettings),
   };
 
   try {
     const res = await fetch("/api/v1/host/settings", config);
 
     if (res.status !== 200) {
-      dispatch({
-        type: NOTIFICATIONS_ADD,
-        payload: {
-          msg: "Failed to save settings."
-        }
-      });
+      dispatch(
+        addNotification({
+          msg: "Failed to save settings.",
+        })
+      );
 
       return;
     }
 
     dispatch({
       type: UPDATE_GLOBAL_SETTINGS,
-      payload: newSettings
+      payload: newSettings,
     });
 
-    dispatch({
-      type: NOTIFICATIONS_ADD,
-      payload: {
-        msg: "Successfuly saved your changes."
-      }
-    });
-  } catch(err) {
-    dispatch({
-      type: NOTIFICATIONS_ADD,
-      payload: {
-        msg: "Failed to save settings."
-      }
-    });
+    dispatch(
+      addNotification({
+        msg: "Successfuly saved your changes.",
+      })
+    );
+  } catch (err) {
+    dispatch(
+      addNotification({
+        msg: "Failed to save settings.",
+      })
+    );
   }
 };

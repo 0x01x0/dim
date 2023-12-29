@@ -1,59 +1,51 @@
 import { useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import { useParams } from "react-router-dom";
-import { fetchMediaSeasons } from "../../actions/media.js";
+
+import { useGetMediaSeasonsQuery } from "../../api/v1/media";
 
 import CardImage from "./CardImage";
 import MediaEpisodes from "./Episodes";
 
 import "./Seasons.scss";
 
-function MediaSeasons() {
-  const dispatch = useDispatch();
-
-  const {media} = useSelector(store => ({
-    media: store.media
-  }));
+function MediaSeasons(props) {
+  const { setActiveId } = props;
 
   const { id } = useParams();
   const [season, setSeason] = useState();
   const [prevID, setPrevID] = useState();
 
-  useEffect(() => {
-    dispatch(fetchMediaSeasons(id));
-  }, [dispatch, id]);
+  const { data: seasons } = useGetMediaSeasonsQuery(id);
 
   useEffect(() => {
-    if (!media[id].seasons) return;
-
-    const { seasons } = media[id];
+    if (!seasons) return;
 
     if (prevID !== id) {
       setPrevID(id);
       setSeason(seasons[0].id);
     }
-  }, [id, media, prevID]);
+  }, [seasons, id, prevID]);
 
-  if (media[id]?.seasons) {
+  if (seasons) {
     return (
       <div className="mediaPageSeasons">
         <section>
           <h2>Seasons</h2>
           <div className={`seasons ${season && "selected"}`}>
-            {media[id].seasons.map(({id, season_number, poster}, i) => (
+            {seasons.map(({ id, season_number, poster }) => (
               <div
                 className={`season ${id === season && "active"}`}
-                key={i}
+                key={id}
                 onClick={() => setSeason(id)}
               >
-                <CardImage src={poster}/>
+                <CardImage src={poster} />
                 <p>Season {season_number}</p>
               </div>
             ))}
           </div>
         </section>
-        {(season !== undefined && prevID === id) && (
-          <MediaEpisodes seasonID={season}/>
+        {season !== undefined && prevID === id && (
+          <MediaEpisodes seasonID={season} setActiveId={setActiveId} />
         )}
       </div>
     );

@@ -2,26 +2,26 @@ import { useEffect } from "react";
 import { Route, useHistory } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
-import { updateAuthToken } from "../actions/auth.js";
+import { checkAdminExists, updateAuthToken } from "../actions/auth.js";
 import { fetchUser } from "../actions/user.js";
 
 function PrivateRoute(props) {
   const dispatch = useDispatch();
 
-  const { auth, user } = useSelector(store => ({
+  const { auth, user } = useSelector((store) => ({
     auth: store.auth,
-    user: store.user
+    user: store.user,
   }));
 
   const history = useHistory();
 
   const tokenInCookie = document?.cookie
     .split("; ")
-    .find(cookie => cookie.startsWith("token="))
+    .find((cookie) => cookie.startsWith("token="))
     ?.split("=")[1];
 
   const { logged_in, error } = auth.login;
-  const { token } = auth;
+  const { token, admin_exists } = auth;
 
   useEffect(() => {
     if (tokenInCookie && !token) {
@@ -36,15 +36,22 @@ function PrivateRoute(props) {
       // expire cookie token in 7 days
       dateExpires.setTime(dateExpires.getTime() + 604800000);
 
-      document.cookie = (
-        `token=${token};expires=${dateExpires.toGMTString()};samesite=lax;`
-      );
+      document.cookie = `token=${token};expires=${dateExpires.toGMTString()};samesite=lax;`;
     }
 
     if (!token && !tokenInCookie) {
-      history.push("/login");
+      switch (admin_exists) {
+        case true:
+          history.push("/login");
+          return;
+        case false:
+          history.push("/register");
+          return;
+        default:
+          return;
+      }
     }
-  }, [error, history, logged_in, token, tokenInCookie, dispatch]);
+  }, [error, history, logged_in, token, tokenInCookie, admin_exists, dispatch]);
 
   // auto logout when logged out in another tab
   useEffect(() => {
@@ -90,14 +97,19 @@ function PrivateRoute(props) {
   }, [history.location.pathname]);
 
   useEffect(() => {
+    dispatch(checkAdminExists());
     dispatch(fetchUser());
   }, [dispatch]);
 
   const { exact, path, render, children } = props;
   const userExists = user.fetched && !user.error;
 
-  return (userExists && token && tokenInCookie) && (
-    <Route exact={exact} path={path} render={render} children={children}/>
+  return (
+    userExists &&
+    token &&
+    tokenInCookie && (
+      <Route exact={exact} path={path} render={render} children={children} />
+    )
   );
 }
 

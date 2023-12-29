@@ -4,23 +4,27 @@ import { useDispatch, useSelector } from "react-redux";
 import SettingsIcon from "../../../../assets/Icons/Settings";
 
 import { toggleShowSettings } from "../../../../actions/video";
+import { UnfocusableButton } from "Components/unfocusableButton";
 
 function VideoActionSettings() {
   const dispatch = useDispatch();
 
-  const { video } = useSelector(store => ({
-    video: store.video
+  const { video } = useSelector((store) => ({
+    video: store.video,
   }));
 
   const toggleSettings = useCallback(() => {
     dispatch(toggleShowSettings());
   }, [dispatch]);
 
-  const handleKeyDown = useCallback(e => {
-    if (e.key === "c") {
-      toggleSettings();
-    }
-  }, [toggleSettings]);
+  const handleKeyDown = useCallback(
+    (e) => {
+      if (e.key === "c") {
+        toggleSettings();
+      }
+    },
+    [toggleSettings]
+  );
 
   useEffect(() => {
     document.addEventListener("keydown", handleKeyDown);
@@ -31,9 +35,12 @@ function VideoActionSettings() {
   }, [handleKeyDown]);
 
   return (
-    <button onClick={toggleSettings} className={`settings menuActive-${video.showSettings}`}>
-      <SettingsIcon/>
-    </button>
+    <UnfocusableButton
+      onClick={toggleSettings}
+      className={`settings menuActive-${video.showSettings}`}
+    >
+      <SettingsIcon />
+    </UnfocusableButton>
   );
 }
 

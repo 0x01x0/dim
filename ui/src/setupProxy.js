@@ -1,11 +1,11 @@
-const { createProxyMiddleware } = require("http-proxy-middleware");
+const createProxyMiddleware = require("http-proxy-middleware");
 
-module.exports = function(app) {
+module.exports = function (app) {
   app.use(
     "/api",
     createProxyMiddleware({
       target: "http://127.0.0.1:8000",
-      changeOrigin: true
+      changeOrigin: true,
     })
   );
 
@@ -13,16 +13,16 @@ module.exports = function(app) {
     "/images",
     createProxyMiddleware({
       target: "http://127.0.0.1:8000",
-      changeOrigin: true
+      changeOrigin: true,
     })
   );
 
   app.use(
     "/ws",
     createProxyMiddleware({
-      target: "ws://127.0.0.1:8000",
+      target: "http://127.0.0.1:8000",
       ws: true,
-      changeOrigin: true
+      changeOrigin: true,
     })
   );
 };
